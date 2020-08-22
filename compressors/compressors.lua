@@ -45,7 +45,7 @@ function findDeliveryTransposerForItem(itemName)
         -- which has known slots
         for slot=1,9 do
             local stack = proxy.getStackInSlot(D_MEINTERFACE_SIDE, slot)
-            if stack ~= nil and stack.name == itemName then
+            if stack ~= nil and getItemName(stack) == itemName then
                 local delivery = {}
                 delivery.addr = addr
                 delivery.proxy = proxy
@@ -58,6 +58,13 @@ function findDeliveryTransposerForItem(itemName)
 
     -- not found
     return nil
+end
+
+function getItemName(stack)
+    if stack == nil then
+        return nil
+    end
+    return stack.name .. "-" .. stack.label
 end
 
 function firstEmptySlot(transposer, side)
@@ -99,7 +106,7 @@ function pollInputCrate()
             break
         end
         if next(stack) ~= nil then
-            local itemName = stack.name
+            local itemName = getItemName(stack)
             -- (if there is already an ongoing job for this item, leave it in the input chest)
             if jobQueue[itemName] == nil then
                 local delivery = findDeliveryTransposerForItem(itemName)
@@ -109,6 +116,8 @@ function pollInputCrate()
                     -- move the one item to the output crate
                     recipeTransposer.transferItem(R_INPUT_CRATE, R_OUTPUT_CRATE, 1, slot, outputSlot)
     
+                    -- TODO: initiate a craft for 9999 of the item
+
                     -- queue up 9999 more items
                     print("Queueing " .. itemName)
 
@@ -132,9 +141,9 @@ function processJobQueue()
         local delivery = queueItem.delivery
 
         local stack = delivery.proxy.getStackInSlot(D_MEINTERFACE_SIDE, delivery.slot)
-        if stack ~= nil and stack.name ~= itemName then
-            print("ME interface " .. delivery.addr .. " expected " .. itemName .. " slot " .. delivery.slot .. " but was " .. stack.name)
-        elseif stack ~= nil then
+        if stack ~= nil and getItemName(stack) ~= itemName then
+            print("ME interface " .. delivery.addr .. " expected " .. itemName .. " slot " .. delivery.slot .. " but was " .. getItemName(stack))
+        elseif stack ~= nil and stack.size > 0 then
             local outputSlot = firstAvailableSlot(delivery.proxy, D_CRATE_SIDE, stack.maxSize)
             if outputSlot == nil then
                 print("Output full: " .. delivery.addr)
@@ -160,7 +169,7 @@ while true do
     pollInputCrate()
     processJobQueue()
     if next(jobQueue) == nil then
-        print("No jobs")
+        -- print("No jobs")
         os.sleep(10)
     else
         os.sleep(1)
