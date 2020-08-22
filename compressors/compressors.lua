@@ -61,6 +61,10 @@ function findDeliveryTransposerForItem(itemName)
 end
 
 function firstEmptySlot(transposer, side)
+    return firstAvailableSlot(transposer, side, nil)
+end
+
+function firstAvailableSlot(transposer, side, maxSize)
     local stacks = transposer.getAllStacks(side)
     local slot = 0
     while true do
@@ -69,7 +73,7 @@ function firstEmptySlot(transposer, side)
         if stack == nil then
             return nil
         end
-        if next(stack) == nil then
+        if next(stack) == nil or (maxSize ~= nil and stack.maxSize < maxSize) then
             return slot
         end
     end
@@ -131,7 +135,7 @@ function processJobQueue()
         if stack ~= nil and stack.name ~= itemName then
             print("ME interface " .. delivery.addr .. " expected " .. itemName .. " slot " .. delivery.slot .. " but was " .. stack.name)
         elseif stack ~= nil then
-            local outputSlot = firstEmptySlot(delivery.proxy, D_CRATE_SIDE)
+            local outputSlot = firstAvailableSlot(delivery.proxy, D_CRATE_SIDE, stack.maxSize)
             if outputSlot == nil then
                 print("Output full: " .. delivery.addr)
             else
