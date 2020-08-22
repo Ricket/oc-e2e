@@ -68,10 +68,10 @@ function getItemName(stack)
 end
 
 function firstEmptySlot(transposer, side)
-    return firstAvailableSlot(transposer, side, nil)
+    return firstAvailableSlot(transposer, side, nil, nil)
 end
 
-function firstAvailableSlot(transposer, side, maxSize)
+function firstAvailableSlot(transposer, side, itemName, maxSize)
     local stacks = transposer.getAllStacks(side)
     local slot = 0
     while true do
@@ -80,7 +80,10 @@ function firstAvailableSlot(transposer, side, maxSize)
         if stack == nil then
             return nil
         end
-        if next(stack) == nil or (maxSize ~= nil and stack.size < maxSize) then
+        if next(stack) == nil then
+            return slot
+        end
+        if itemName ~= nil and maxSize ~= nil and getItemName(stack) == itemName and stack.size < maxSize then
             return slot
         end
     end
@@ -113,10 +116,10 @@ function pollInputCrate()
                 if delivery == nil then
                     print("No delivery transposer for " .. itemName)
                 else
+                    -- TODO: initiate a craft for 9999 of the item (or check if we already have 9999)
+
                     -- move the one item to the output crate
                     recipeTransposer.transferItem(R_INPUT_CRATE, R_OUTPUT_CRATE, 1, slot, outputSlot)
-    
-                    -- TODO: initiate a craft for 9999 of the item
 
                     -- queue up 9999 more items
                     print("Queueing " .. itemName)
@@ -141,10 +144,11 @@ function processJobQueue()
         local delivery = queueItem.delivery
 
         local stack = delivery.proxy.getStackInSlot(D_MEINTERFACE_SIDE, delivery.slot)
-        if stack ~= nil and getItemName(stack) ~= itemName then
+        local stackItemName = getItemName(stack)
+        if stack ~= nil and stackItemName ~= itemName then
             print("ME interface " .. delivery.addr .. " expected " .. itemName .. " slot " .. delivery.slot .. " but was " .. getItemName(stack))
         elseif stack ~= nil and stack.size > 0 then
-            local outputSlot = firstAvailableSlot(delivery.proxy, D_CRATE_SIDE, stack.maxSize)
+            local outputSlot = firstAvailableSlot(delivery.proxy, D_CRATE_SIDE, stackItemName, stack.maxSize)
             if outputSlot == nil then
                 print("Output full: " .. delivery.addr)
             else
