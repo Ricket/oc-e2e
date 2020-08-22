@@ -73,7 +73,7 @@ function firstAvailableSlot(transposer, side, maxSize)
         if stack == nil then
             return nil
         end
-        if next(stack) == nil or (maxSize ~= nil and stack.maxSize < maxSize) then
+        if next(stack) == nil or (maxSize ~= nil and stack.size < maxSize) then
             return slot
         end
     end
