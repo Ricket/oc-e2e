@@ -165,9 +165,11 @@ function pollInputCrate()
                     -- check if we already have 9999 of the item, and if not, start a craft
                     local ae2Amount = getAe2Amount(stack)
                     if ae2Amount < 9999 then
+                        local amountToRequest = 9999 - ae2Amount
                         local craftable = getCraftable(stack)
                         if craftable ~= nil then
-                            craftable.request(9999 - ae2Amount)
+                            craftable.request(amountToRequest)
+                            print("Craft requested: " .. amountToRequest .. " " .. itemName)
                         else
                             print("Could not find craft for " .. itemName .. ", relying on ME interface on-demand crafting")
                         end
