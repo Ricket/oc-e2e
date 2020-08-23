@@ -15,6 +15,52 @@ local file = filesystem.open("/etc/compressors.cfg", "r")
 local recipeTransposerAddress = file:read(100)
 file:close()
 
+-- find any me interface
+local interfaces = component.list("me_interface", true)
+local meInterfaceAddr = next(interfaces)
+assert(meInterfaceAddr ~= nil, "Need an adapter hooked to an ME interface")
+local meInterface = component.proxy(meInterfaceAddr)
+assert(meInterface ~= nil, "Failed to proxy ME interface")
+
+function makeAe2Filter(stack)
+    local filter = {}
+    filter.name = stack.name
+    filter.label = stack.label
+    filter.hasTag = stack.hasTag
+    filter.damage = stack.damage
+    return filter
+end
+
+function getAe2Amount(stack)
+    local filter = makeAe2Filter(stack)
+
+    local itemsInNetwork = meInterface.getItemsInNetwork(filter)
+    if itemsInNetwork == nil then
+        return 0
+    end
+    assert(#itemsInNetwork < 2, "getAe2Amount: filter not specific enough: " .. serialization.serialize(filter) .. " from " .. serialization.serialize(stack))
+    if #itemsInNetwork > 0 then
+        local stackInNetwork = next(itemsInNetwork)
+        return stackInNetwork.size
+    end
+    return 0
+end
+
+function getCraftable(stack)
+    local filter = makeAe2Filter(stack)
+
+    local craftables = meInterface.getCraftables(filter)
+    if craftables == nil then
+        return nil
+    end
+    assert(#craftables < 2, "getCraftable: filter not specific enough: " .. serialization.serialize(filter) .. " from " .. serialization.serialize(stack))
+    if #craftables > 0 then
+        local craftable = next(craftables)
+        return craftable
+    end
+    return nil
+end
+
 -- open the transposer proxies
 local recipeTransposer
 local deliveryTransposers = {}
@@ -116,7 +162,16 @@ function pollInputCrate()
                 if delivery == nil then
                     print("No delivery transposer for " .. itemName)
                 else
-                    -- TODO: initiate a craft for 9999 of the item (or check if we already have 9999)
+                    -- check if we already have 9999 of the item, and if not, start a craft
+                    local ae2Amount = getAe2Amount(stack)
+                    if ae2Amount < 9999 then
+                        local craftable = getCraftable(stack)
+                        if craftable ~= nil then
+                            craftable.request(9999 - ae2Amount)
+                        else
+                            print("Could not find craft for " .. itemName .. ", relying on ME interface on-demand crafting")
+                        end
+                    end
 
                     -- move the one item to the output crate
                     recipeTransposer.transferItem(R_INPUT_CRATE, R_OUTPUT_CRATE, 1, slot, outputSlot)
