@@ -40,7 +40,7 @@ function getAe2Amount(stack)
     end
     assert(#itemsInNetwork < 2, "getAe2Amount: filter not specific enough: " .. serialization.serialize(filter) .. " from " .. serialization.serialize(stack))
     if #itemsInNetwork > 0 then
-        local stackInNetwork = next(itemsInNetwork)
+        local stackInNetwork = itemsInNetwork[next(itemsInNetwork)]
         return stackInNetwork.size
     end
     return 0
@@ -55,7 +55,7 @@ function getCraftable(stack)
     end
     assert(#craftables < 2, "getCraftable: filter not specific enough: " .. serialization.serialize(filter) .. " from " .. serialization.serialize(stack))
     if #craftables > 0 then
-        local craftable = next(craftables)
+        local craftable = craftables[next(craftables)]
         return craftable
     end
     return nil
@@ -195,7 +195,12 @@ function pollInputCrate()
     end
 end
 
+-- returns recommended sleep time
 function processJobQueue()
+    if next(jobQueue) == nil then
+        return 10
+    end
+    local sleepTime = 0.5
     for itemName, queueItem in pairs(jobQueue) do
         local remaining = queueItem.remaining
         local delivery = queueItem.delivery
@@ -208,6 +213,7 @@ function processJobQueue()
             local outputSlot = firstAvailableSlot(delivery.proxy, D_CRATE_SIDE, stackItemName, stack.maxSize)
             if outputSlot == nil then
                 print("Output full: " .. delivery.addr)
+                sleepTime = 1
             else
                 local amount = stack.size
                 if amount > remaining then
@@ -216,6 +222,7 @@ function processJobQueue()
                 amount = delivery.proxy.transferItem(D_MEINTERFACE_SIDE, D_CRATE_SIDE, amount, delivery.slot, outputSlot)
                 queueItem.remaining = queueItem.remaining - amount
                 print("Moved " .. amount .. " " .. itemName .. ", " .. queueItem.remaining .. " remaining")
+                sleepTime = 0.05
                 if queueItem.remaining <= 0 then
                     jobQueue[itemName] = nil
                 end
@@ -224,17 +231,13 @@ function processJobQueue()
             print("Waiting for " .. itemName .. " to restock")
         end
     end
+    return sleepTime
 end
 
 while true do
     pollInputCrate()
-    processJobQueue()
-    if next(jobQueue) == nil then
-        -- print("No jobs")
-        os.sleep(10)
-    else
-        os.sleep(1)
-    end
+    local sleepTime = processJobQueue()
+    os.sleep(sleepTime)
 end
 
 
